@@ -1,5 +1,5 @@
 use gtk4::prelude::*;
-use gtk4::{Box, Label, ScrolledWindow, Orientation};
+use gtk4::{Box, Button, Label, ScrolledWindow, Orientation};
 use crate::email::account::Message;
 
 pub fn build() -> (ScrolledWindow, Box) {
@@ -15,14 +15,20 @@ pub fn build() -> (ScrolledWindow, Box) {
 	(scrolled, list_box.clone())
 }
 
-pub fn update_messages(list_box: &Box, messages: &[Message]) {
+pub fn update_messages<F>(list_box: &Box, messages: &[Message], on_message_click: F)
+where
+	F: Fn(usize) + 'static + Clone,
+{
 	// Clear existing messages
 	while let Some(child) = list_box.first_child() {
 		list_box.remove(&child);
 	}
 
 	// Add new messages
-	for msg in messages {
+	for (index, msg) in messages.iter().enumerate() {
+		let msg_btn = Button::new();
+		msg_btn.set_has_frame(false);
+
 		let msg_box = Box::new(Orientation::Vertical, 4);
 		msg_box.set_margin_top(8);
 		msg_box.set_margin_bottom(8);
@@ -43,6 +49,13 @@ pub fn update_messages(list_box: &Box, messages: &[Message]) {
 		preview_label.add_css_class("dim-label");
 		msg_box.append(&preview_label);
 
-		list_box.append(&msg_box);
+		msg_btn.set_child(Some(&msg_box));
+
+		let callback = on_message_click.clone();
+		msg_btn.connect_clicked(move |_| {
+			callback(index);
+		});
+
+		list_box.append(&msg_btn);
 	}
 }

@@ -10,5 +10,6 @@ pub struct Message {
 	pub from: String,
 	pub subject: String,
 	pub preview: String,
+	pub body: String,
 	pub unread: bool,
 }
