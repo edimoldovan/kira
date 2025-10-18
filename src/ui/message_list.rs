@@ -9,15 +9,12 @@ pub enum Message {
     AddMessage,
 }
 
-pub fn view<'a>(
-    messages: &'a [EmailMessage],
-    current_message: usize,
-) -> Element<'a, Message> {
+pub fn view<'a>(messages: &'a [EmailMessage], current_message: usize) -> Element<'a, Message> {
     let toolbar = row![button(text("+"))
         .style(theme::button_style)
         .on_press(Message::AddMessage)]
-        .padding(0)
-        .spacing(0);
+    .padding(0)
+    .spacing(0);
 
     let mut list_content = column![toolbar].spacing(8).padding(12);
 

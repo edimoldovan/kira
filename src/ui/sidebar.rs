@@ -18,16 +18,16 @@ pub fn view<'a>(
     let toolbar = row![button(text("+"))
         .style(theme::button_style)
         .on_press(Message::AddAccount)]
-        .padding(0)
-        .spacing(0);
+    .padding(0)
+    .spacing(0);
 
     let mut sidebar_content = column![toolbar].spacing(8).padding(12);
 
     // Section 1: Inbox buttons
     for (index, account) in accounts.iter().enumerate() {
         let is_selected = index == current_account;
-        let mut btn = button(text(format!("{} ({})", account.name, account.unread)))
-            .width(Length::Fill);
+        let mut btn =
+            button(text(format!("{} ({})", account.name, account.unread))).width(Length::Fill);
 
         if is_selected {
             btn = btn.style(|_theme, _status| button::Style {
