@@ -4,6 +4,7 @@ mod theme;
 mod ui;
 
 use email::account::Account;
+use email::imap;
 use iced::widget::{container, row};
 use iced::{Element, Length, Task, Theme};
 
@@ -19,6 +20,8 @@ struct Kira {
   current_account: usize,
   current_message: usize,
   expanded_accounts: Vec<bool>,
+  sync_error: Option<String>,
+  is_syncing: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -26,13 +29,15 @@ enum Message {
   Sidebar(ui::sidebar::Message),
   MessageList(ui::message_list::Message),
   Reader(ui::reader::Message),
+  SyncComplete(Result<(), String>),
 }
 
 impl Kira {
   fn new() -> (Self, Task<Message>) {
     let accounts = config::load_accounts();
-
     let expanded_accounts = vec![false; accounts.len()];
+
+    let sync_task = Task::perform(sync_all_accounts(), Message::SyncComplete);
 
     (
       Self {
@@ -40,8 +45,10 @@ impl Kira {
         current_account: 0,
         current_message: 0,
         expanded_accounts,
+        sync_error: None,
+        is_syncing: true,
       },
-      Task::none(),
+      sync_task,
     )
   }
 
@@ -66,6 +73,19 @@ impl Kira {
         ui::message_list::Message::AddMessage => {}
       },
       Message::Reader(_reader_msg) => {}
+      Message::SyncComplete(result) => {
+        self.is_syncing = false;
+        match result {
+          Ok(_) => {
+            self.accounts = config::load_accounts();
+            self.expanded_accounts = vec![false; self.accounts.len()];
+            self.sync_error = None;
+          }
+          Err(e) => {
+            self.sync_error = Some(e);
+          }
+        }
+      }
     }
     Task::none()
   }
@@ -75,6 +95,8 @@ impl Kira {
       &self.accounts,
       self.current_account,
       &self.expanded_accounts,
+      self.sync_error.as_deref(),
+      self.is_syncing,
     )
     .map(Message::Sidebar);
 
@@ -107,5 +129,24 @@ impl Kira {
 
   fn theme(&self) -> Theme {
     Theme::Dark
+  }
+}
+
+async fn sync_all_accounts() -> Result<(), String> {
+  let configs = config::get_account_configs();
+  let mut errors = Vec::new();
+
+  for account in &configs {
+    if let Err(e) = imap::sync_account(account).await {
+      let error_msg = format!("{}: {}", account.email, e);
+      eprintln!("Failed to sync {}", error_msg);
+      errors.push(error_msg);
+    }
+  }
+
+  if errors.is_empty() {
+    Ok(())
+  } else {
+    Err(errors.join("\n"))
   }
 }
