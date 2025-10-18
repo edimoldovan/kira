@@ -1,6 +1,8 @@
 use gtk4::prelude::*;
 use gtk4::{Box, Button, Expander, Orientation};
 use crate::email::account::Account;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 pub fn build<F>(accounts: &[Account], on_inbox_click: F) -> Box
 where
@@ -15,12 +17,29 @@ where
 
 	// Section 1: Inboxes
 	let inboxes_box = Box::new(Orientation::Vertical, 4);
+	let inbox_buttons: Rc<RefCell<Vec<Button>>> = Rc::new(RefCell::new(Vec::new()));
+
 	for (index, account) in accounts.iter().enumerate() {
 		let inbox_btn = Button::with_label(&format!("{} Inbox ({})", account.name, account.unread));
+
+		// Select first inbox by default
+		if index == 0 {
+			inbox_btn.add_css_class("suggested-action");
+		}
+
 		let callback = on_inbox_click.clone();
-		inbox_btn.connect_clicked(move |_| {
+		let buttons_clone = Rc::clone(&inbox_buttons);
+		inbox_btn.connect_clicked(move |btn| {
+			// Remove selected state from all buttons
+			for b in buttons_clone.borrow().iter() {
+				b.remove_css_class("suggested-action");
+			}
+			// Add selected state to clicked button
+			btn.add_css_class("suggested-action");
 			callback(index);
 		});
+
+		inbox_buttons.borrow_mut().push(inbox_btn.clone());
 		inboxes_box.append(&inbox_btn);
 	}
 	sidebar.append(&inboxes_box);
