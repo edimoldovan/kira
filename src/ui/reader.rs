@@ -1,52 +1,40 @@
-use gtk4::prelude::*;
-use gtk4::{Box, Button, Label, ScrolledWindow, Orientation};
-use crate::email::account::Message;
+use crate::email::account::Message as EmailMessage;
+use iced::widget::{button, column, container, horizontal_space, row, scrollable, text};
+use iced::{Element, Length};
 
-pub fn build() -> (ScrolledWindow, Box) {
-	let scrolled = ScrolledWindow::new();
-	scrolled.set_hexpand(true);
-
-	let reader_box = Box::new(Orientation::Vertical, 16);
-	reader_box.set_margin_start(12);
-	reader_box.set_margin_end(12);
-	reader_box.set_margin_top(8);
-	reader_box.set_margin_bottom(8);
-
-	scrolled.set_child(Some(&reader_box));
-	(scrolled, reader_box.clone())
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub enum Message {
+    Reply,
+    ReplyAll,
+    Forward,
+    Delete,
+    MarkAsSpam,
 }
 
-pub fn update_message(reader_box: &Box, message: &Message) {
-	// Clear existing content
-	while let Some(child) = reader_box.first_child() {
-		reader_box.remove(&child);
-	}
+pub fn view<'a>(message: Option<&'a EmailMessage>) -> Element<'a, Message> {
+    let toolbar = row![
+        button(text("Reply")),
+        button(text("Reply all")),
+        button(text("Forward")),
+        horizontal_space(),
+        button(text("Mark as spam")),
+        button(text("Delete")),
+    ]
+    .spacing(8)
+    .padding(0);
 
-	// Toolbar with action buttons
-	let toolbar = Box::new(Orientation::Horizontal, 8);
-	let reply_btn = Button::with_label("Reply");
-	let reply_all_btn = Button::with_label("Reply all");
-	let forward_btn = Button::with_label("Forward");
-	let delete_btn = Button::with_label("Delete");
-	let spam_btn = Button::with_label("Mark as spam");
-	toolbar.append(&reply_btn);
-	toolbar.append(&reply_all_btn);
-	toolbar.append(&forward_btn);
-	toolbar.append(&delete_btn);
-	toolbar.append(&spam_btn);
-	reader_box.append(&toolbar);
+    let mut reader_content = column![toolbar].spacing(16).padding(12);
 
-	// Add message content
-	let from_label = Label::new(Some(&format!("From: {}", message.from)));
-	from_label.set_xalign(0.0);
-	reader_box.append(&from_label);
+    if let Some(msg) = message {
+        reader_content = reader_content
+            .push(text(format!("From: {}", msg.from)))
+            .push(text(format!("Subject: {}", msg.subject)))
+            .push(text(&msg.body));
+    }
 
-	let subject_label = Label::new(Some(&format!("Subject: {}", message.subject)));
-	subject_label.set_xalign(0.0);
-	reader_box.append(&subject_label);
-
-	let body_label = Label::new(Some(&message.body));
-	body_label.set_xalign(0.0);
-	body_label.set_wrap(true);
-	reader_box.append(&body_label);
+    container(scrollable(reader_content))
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
 }

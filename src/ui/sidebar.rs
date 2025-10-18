@@ -1,80 +1,60 @@
-use gtk4::prelude::*;
-use gtk4::{Box, Button, Expander, Label, Orientation};
 use crate::email::account::Account;
-use std::rc::Rc;
-use std::cell::RefCell;
+use iced::widget::{button, column, container, row, scrollable, text};
+use iced::{Color, Element, Length};
 
-pub fn build<F>(accounts: &[Account], on_inbox_click: F) -> Box
-where
-	F: Fn(usize) + 'static + Clone,
-{
-	let sidebar = Box::new(Orientation::Vertical, 8);
-	sidebar.set_margin_start(12);
-	sidebar.set_margin_end(12);
-	sidebar.set_margin_top(8);
-	sidebar.set_margin_bottom(8);
+#[derive(Debug, Clone)]
+pub enum Message {
+    InboxClicked(usize),
+    AddAccount,
+    ToggleAccountExpansion(usize),
+}
 
-	// Toolbar with plus button
-	let toolbar = Box::new(Orientation::Horizontal, 0);
-	let plus_btn = Button::with_label("+");
-	toolbar.append(&plus_btn);
-	sidebar.append(&toolbar);
+pub fn view<'a>(
+    accounts: &'a [Account],
+    current_account: usize,
+    expanded_accounts: &'a [bool],
+) -> Element<'a, Message> {
+    let toolbar = row![button(text("+")).on_press(Message::AddAccount)]
+        .padding(0)
+        .spacing(0);
 
-	// Section 1: Inboxes
-	let inboxes_box = Box::new(Orientation::Vertical, 8);
-	let inbox_buttons: Rc<RefCell<Vec<Button>>> = Rc::new(RefCell::new(Vec::new()));
+    let mut sidebar_content = column![toolbar].spacing(8).padding(12);
 
-	for (index, account) in accounts.iter().enumerate() {
-		let inbox_btn = Button::new();
-		let label = Label::new(Some(&format!("{} ({})", account.name, account.unread)));
-		label.set_xalign(0.0);
-		inbox_btn.set_child(Some(&label));
+    // Section 1: Inbox buttons
+    for (index, account) in accounts.iter().enumerate() {
+        let is_selected = index == current_account;
+        let mut btn = button(text(format!("{} ({})", account.name, account.unread)))
+            .width(Length::Fill);
 
-		// Select first inbox by default
-		if index == 0 {
-			inbox_btn.add_css_class("suggested-action");
-		}
+        if is_selected {
+            btn = btn.style(|_theme, _status| button::Style {
+                background: Some(Color::from_rgb(0.3, 0.5, 0.8).into()),
+                ..Default::default()
+            });
+        }
 
-		let callback = on_inbox_click.clone();
-		let buttons_clone = Rc::clone(&inbox_buttons);
-		inbox_btn.connect_clicked(move |btn| {
-			// Remove selected state from all buttons
-			for b in buttons_clone.borrow().iter() {
-				b.remove_css_class("suggested-action");
-			}
-			// Add selected state to clicked button
-			btn.add_css_class("suggested-action");
-			callback(index);
-		});
+        btn = btn.on_press(Message::InboxClicked(index));
 
-		inbox_buttons.borrow_mut().push(inbox_btn.clone());
-		inboxes_box.append(&inbox_btn);
-	}
-	sidebar.append(&inboxes_box);
+        sidebar_content = sidebar_content.push(btn);
+    }
 
-	// Spacing between sections
-	let spacer = Box::new(Orientation::Vertical, 0);
-	// spacer.set_margin_top(16);
-	sidebar.append(&spacer);
+    // Section 2: Account details with folders
+    for (index, account) in accounts.iter().enumerate() {
+        let email_btn = button(text(&account.email))
+            .width(Length::Fill)
+            .on_press(Message::ToggleAccountExpansion(index));
+        sidebar_content = sidebar_content.push(email_btn);
 
-	// Section 2: Account details with folders
-	let accounts_box = Box::new(Orientation::Vertical, 8);
-	for account in accounts {
-		let expander = Expander::new(Some(&account.email));
+        if *expanded_accounts.get(index).unwrap_or(&false) {
+            for folder in &account.folders {
+                let folder_btn = button(text(folder)).width(Length::Fill);
+                sidebar_content = sidebar_content.push(folder_btn);
+            }
+        }
+    }
 
-		let folders_box = Box::new(Orientation::Vertical, 8);
-		// folders_box.set_margin_start(16);
-		folders_box.set_margin_top(8);
-
-		for folder in &account.folders {
-			let folder_btn = Button::with_label(folder);
-			folders_box.append(&folder_btn);
-		}
-
-		expander.set_child(Some(&folders_box));
-		accounts_box.append(&expander);
-	}
-	sidebar.append(&accounts_box);
-
-	sidebar
+    container(scrollable(sidebar_content))
+        .width(250)
+        .height(Length::Fill)
+        .into()
 }
