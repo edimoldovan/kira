@@ -1,5 +1,5 @@
 use gtk4::prelude::*;
-use gtk4::{Box, Label, ScrolledWindow, Orientation};
+use gtk4::{Box, Button, Label, ScrolledWindow, Orientation};
 use crate::email::account::Message;
 
 pub fn build() -> (ScrolledWindow, Box) {
@@ -20,6 +20,20 @@ pub fn update_message(reader_box: &Box, message: &Message) {
 	while let Some(child) = reader_box.first_child() {
 		reader_box.remove(&child);
 	}
+
+	// Toolbar with action buttons
+	let toolbar = Box::new(Orientation::Horizontal, 8);
+	let reply_btn = Button::with_label("Reply");
+	let reply_all_btn = Button::with_label("Reply all");
+	let forward_btn = Button::with_label("Forward");
+	let delete_btn = Button::with_label("Delete");
+	let spam_btn = Button::with_label("Mark as spam");
+	toolbar.append(&reply_btn);
+	toolbar.append(&reply_all_btn);
+	toolbar.append(&forward_btn);
+	toolbar.append(&delete_btn);
+	toolbar.append(&spam_btn);
+	reader_box.append(&toolbar);
 
 	// Add message content
 	let from_label = Label::new(Some(&format!("From: {}", message.from)));
