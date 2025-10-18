@@ -6,7 +6,7 @@ use async_native_tls::{TlsConnector, TlsStream};
 use async_std::net::TcpStream;
 use chrono::{DateTime, Utc};
 use futures::StreamExt;
-use mailparse::{parse_mail, MailHeaderMap, dateparse};
+use mailparse::{dateparse, parse_mail};
 
 type ImapSession = Session<TlsStream<TcpStream>>;
 
@@ -30,7 +30,7 @@ pub async fn sync_account(account: &AccountConfig) -> Result<(), String> {
 
   {
     let mut messages_stream = session
-      .fetch(&fetch_range, "RFC822")
+      .fetch(&fetch_range, "(UID FLAGS ENVELOPE BODY.PEEK[TEXT]<0.200>)")
       .await
       .map_err(|e| format!("Failed to fetch messages: {}", e))?;
 
@@ -39,35 +39,60 @@ pub async fn sync_account(account: &AccountConfig) -> Result<(), String> {
 
     while let Some(msg_result) = messages_stream.next().await {
       if let Ok(msg) = msg_result {
-        if let Some(body) = msg.body() {
-          if let Ok(parsed) = parse_mail(body) {
-            let date = parsed
-              .headers
-              .get_first_value("Date")
-              .and_then(|d| dateparse(&d).ok())
-              .unwrap_or_else(|| Utc::now().timestamp());
-
-            let message = Message {
-              from: parsed
-                .headers
-                .get_first_value("From")
-                .unwrap_or_default(),
-              subject: parsed
-                .headers
-                .get_first_value("Subject")
-                .unwrap_or_default(),
-              preview: extract_preview(&parsed),
-              body: extract_body(&parsed),
-              date: DateTime::from_timestamp(date, 0).unwrap_or_else(|| Utc::now()),
-              unread: !msg.flags().any(|f| matches!(f, Flag::Seen)),
-            };
-            new_messages.push(message);
-          }
+        let uid = msg.uid.unwrap_or(0);
+        if uid == 0 {
+          continue;
         }
 
-        if let Some(uid) = msg.uid {
-          max_uid = max_uid.max(uid);
-        }
+        let envelope = msg.envelope().ok_or("No envelope")?;
+
+        let from = envelope
+          .from
+          .as_ref()
+          .and_then(|addrs| addrs.first())
+          .and_then(|addr| {
+            addr
+              .name
+              .as_ref()
+              .map(|n| String::from_utf8_lossy(n).to_string())
+              .or_else(|| {
+                addr
+                  .mailbox
+                  .as_ref()
+                  .map(|m| String::from_utf8_lossy(m).to_string())
+              })
+          })
+          .unwrap_or_default();
+
+        let subject = envelope
+          .subject
+          .as_ref()
+          .map(|s| String::from_utf8_lossy(s).to_string())
+          .unwrap_or_default();
+
+        let date = envelope
+          .date
+          .as_ref()
+          .and_then(|d| dateparse(&String::from_utf8_lossy(d)).ok())
+          .unwrap_or_else(|| Utc::now().timestamp());
+
+        let preview = msg
+          .text()
+          .map(|t| String::from_utf8_lossy(t).chars().take(200).collect())
+          .unwrap_or_default();
+
+        let message = Message {
+          uid,
+          from,
+          subject,
+          preview,
+          body: None,
+          date: DateTime::from_timestamp(date, 0).unwrap_or_else(|| Utc::now()),
+          unread: !msg.flags().any(|f| matches!(f, Flag::Seen)),
+        };
+        new_messages.push(message);
+
+        max_uid = max_uid.max(uid);
       }
     }
 
@@ -119,9 +144,45 @@ async fn get_message_count(session: &mut ImapSession) -> Result<u32, String> {
   Ok(mailbox.exists)
 }
 
-fn extract_preview(parsed: &mailparse::ParsedMail) -> String {
-  let body = extract_body(parsed);
-  body.chars().take(100).collect::<String>()
+pub async fn fetch_message_body(
+  account: &AccountConfig,
+  uid: u32,
+) -> Result<String, String> {
+  let mut session = connect_imap(account).await?;
+
+  session
+    .select("INBOX")
+    .await
+    .map_err(|e| format!("Failed to select INBOX: {}", e))?;
+
+  let body = {
+    let mut messages_stream = session
+      .uid_fetch(format!("{}", uid), "RFC822")
+      .await
+      .map_err(|e| format!("Failed to fetch message: {}", e))?;
+
+    if let Some(msg_result) = messages_stream.next().await {
+      let msg = msg_result.map_err(|e| format!("Failed to get message: {}", e))?;
+      if let Some(body_bytes) = msg.body() {
+        if let Ok(parsed) = parse_mail(body_bytes) {
+          extract_body(&parsed)
+        } else {
+          String::new()
+        }
+      } else {
+        String::new()
+      }
+    } else {
+      String::new()
+    }
+  };
+
+  session
+    .logout()
+    .await
+    .map_err(|e| format!("Failed to logout: {}", e))?;
+
+  Ok(body)
 }
 
 fn extract_body(parsed: &mailparse::ParsedMail) -> String {

@@ -30,6 +30,7 @@ enum Message {
   MessageList(ui::message_list::Message),
   Reader(ui::reader::Message),
   SyncComplete(Result<(), String>),
+  MessageBodyLoaded(usize, usize, String),
 }
 
 impl Kira {
@@ -69,6 +70,28 @@ impl Kira {
       Message::MessageList(msg_list_msg) => match msg_list_msg {
         ui::message_list::Message::MessageClicked(index) => {
           self.current_message = index;
+
+          if let Some(account) = self.accounts.get(self.current_account) {
+            if let Some(msg) = account.messages.get(index) {
+              if msg.body.is_none() {
+                let configs = config::get_account_configs();
+                if let Some(account_config) = configs.get(self.current_account) {
+                  let account_config = account_config.clone();
+                  let uid = msg.uid;
+                  let account_idx = self.current_account;
+                  let msg_idx = index;
+
+                  return Task::perform(
+                    async move { imap::fetch_message_body(&account_config, uid).await },
+                    move |result| match result {
+                      Ok(body) => Message::MessageBodyLoaded(account_idx, msg_idx, body),
+                      Err(_) => Message::MessageBodyLoaded(account_idx, msg_idx, String::new()),
+                    },
+                  );
+                }
+              }
+            }
+          }
         }
         ui::message_list::Message::AddMessage => {}
       },
@@ -83,6 +106,27 @@ impl Kira {
           }
           Err(e) => {
             self.sync_error = Some(e);
+          }
+        }
+      }
+      Message::MessageBodyLoaded(account_idx, msg_idx, body) => {
+        if let Some(account) = self.accounts.get_mut(account_idx) {
+          if let Some(msg) = account.messages.get_mut(msg_idx) {
+            msg.body = Some(body);
+
+            let email = account.email.clone();
+            let cache_msg = msg.clone();
+            return Task::perform(
+              async move {
+                let mut cache = email::cache::load_folder_cache(&email, "inbox");
+                if let Some(cached_msg) = cache.messages.iter_mut().find(|m| m.uid == cache_msg.uid)
+                {
+                  cached_msg.body = cache_msg.body;
+                }
+                email::cache::save_folder_cache(&email, "inbox", &cache).ok();
+              },
+              |_| Message::Reader(ui::reader::Message::Reply),
+            );
           }
         }
       }

@@ -22,10 +22,11 @@ pub struct Account {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
+  pub uid: u32,
   pub from: String,
   pub subject: String,
   pub preview: String,
-  pub body: String,
+  pub body: Option<String>,
   pub date: DateTime<Utc>,
   pub unread: bool,
 }

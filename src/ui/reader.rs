@@ -30,8 +30,14 @@ pub fn view<'a>(message: Option<&'a EmailMessage>) -> Element<'a, Message> {
   if let Some(msg) = message {
     reader_content = reader_content
       .push(text(format!("From: {}", msg.from)).color(theme::TEXT_COLOR))
-      .push(text(format!("Subject: {}", msg.subject)).color(theme::TEXT_COLOR))
-      .push(text(&msg.body).color(theme::TEXT_COLOR));
+      .push(text(format!("Subject: {}", msg.subject)).color(theme::TEXT_COLOR));
+
+    if let Some(body) = &msg.body {
+      reader_content = reader_content.push(text(body).color(theme::TEXT_COLOR));
+    } else {
+      reader_content =
+        reader_content.push(text("Loading message body...").color(theme::DIM_COLOR));
+    }
   }
 
   container(scrollable(reader_content))
