@@ -15,6 +15,7 @@ struct Kira {
     accounts: Vec<Account>,
     current_account: usize,
     current_message: usize,
+    expanded_accounts: Vec<bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -23,6 +24,7 @@ enum Message {
     MessageClicked(usize),
     AddAccount,
     AddMessage,
+    ToggleAccountExpansion(usize),
 }
 
 impl Kira {
@@ -88,11 +90,14 @@ impl Kira {
             },
         ];
 
+        let expanded_accounts = vec![false; accounts.len()];
+
         (
             Self {
                 accounts,
                 current_account: 0,
                 current_message: 0,
+                expanded_accounts,
             },
             Task::none(),
         )
@@ -109,6 +114,11 @@ impl Kira {
             }
             Message::AddAccount => {}
             Message::AddMessage => {}
+            Message::ToggleAccountExpansion(index) => {
+                if let Some(expanded) = self.expanded_accounts.get_mut(index) {
+                    *expanded = !*expanded;
+                }
+            }
         }
         Task::none()
     }
@@ -139,6 +149,7 @@ impl Kira {
 
         let mut sidebar_content = column![toolbar].spacing(8).padding(12);
 
+        // Section 1: Inbox buttons
         for (index, account) in self.accounts.iter().enumerate() {
             let is_selected = index == self.current_account;
             let mut btn = button(text(format!("{} ({})", account.name, account.unread)))
@@ -151,6 +162,22 @@ impl Kira {
             btn = btn.on_press(Message::InboxClicked(index));
 
             sidebar_content = sidebar_content.push(btn);
+        }
+
+        // Section 2: Account details with folders
+        for (index, account) in self.accounts.iter().enumerate() {
+            let email_btn = button(text(&account.email))
+                .width(Length::Fill)
+                .on_press(Message::ToggleAccountExpansion(index));
+            sidebar_content = sidebar_content.push(email_btn);
+
+            if *self.expanded_accounts.get(index).unwrap_or(&false) {
+                for folder in &account.folders {
+                    let folder_btn = button(text(folder))
+                        .width(Length::Fill);
+                    sidebar_content = sidebar_content.push(folder_btn);
+                }
+            }
         }
 
         container(scrollable(sidebar_content))
