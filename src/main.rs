@@ -1,4 +1,5 @@
 mod email;
+mod theme;
 mod ui;
 
 use email::account::Account;

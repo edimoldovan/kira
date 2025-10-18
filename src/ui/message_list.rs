@@ -1,6 +1,7 @@
 use crate::email::account::Message as EmailMessage;
+use crate::theme;
 use iced::widget::{button, column, container, row, scrollable, text};
-use iced::{Border, Color, Element, Length};
+use iced::{Border, Element, Length};
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -33,7 +34,7 @@ pub fn view<'a>(
 
         if is_selected {
             btn = btn.style(|_theme, _status| button::Style {
-                background: Some(Color::from_rgb(0.3, 0.5, 0.8).into()),
+                background: Some(theme::SELECTED_BACKGROUND.into()),
                 ..Default::default()
             });
         }
@@ -47,7 +48,7 @@ pub fn view<'a>(
         .width(400)
         .height(Length::Fill)
         .style(|_theme| container::Style {
-            background: Some(Color::from_rgb(0.15, 0.15, 0.15).into()),
+            background: Some(theme::MESSAGE_LIST_BACKGROUND.into()),
             border: Border::default(),
             ..Default::default()
         })
