@@ -16,7 +16,7 @@ where
 	sidebar.set_margin_bottom(8);
 
 	// Section 1: Inboxes
-	let inboxes_box = Box::new(Orientation::Vertical, 4);
+	let inboxes_box = Box::new(Orientation::Vertical, 8);
 	let inbox_buttons: Rc<RefCell<Vec<Button>>> = Rc::new(RefCell::new(Vec::new()));
 
 	for (index, account) in accounts.iter().enumerate() {
@@ -46,16 +46,16 @@ where
 
 	// Spacing between sections
 	let spacer = Box::new(Orientation::Vertical, 0);
-	spacer.set_margin_top(16);
+	// spacer.set_margin_top(16);
 	sidebar.append(&spacer);
 
 	// Section 2: Account details with folders
-	let accounts_box = Box::new(Orientation::Vertical, 4);
+	let accounts_box = Box::new(Orientation::Vertical, 8);
 	for account in accounts {
 		let expander = Expander::new(Some(&format!("{} ({})", account.name, account.email)));
 
 		let folders_box = Box::new(Orientation::Vertical, 2);
-		folders_box.set_margin_start(16);
+		// folders_box.set_margin_start(16);
 		folders_box.set_margin_top(4);
 
 		for folder in &account.folders {

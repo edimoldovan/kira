@@ -8,7 +8,7 @@ pub fn build() -> (ScrolledWindow, Box) {
 	let scrolled = ScrolledWindow::new();
 	scrolled.set_width_request(400);
 
-	let list_box = Box::new(Orientation::Vertical, 2);
+	let list_box = Box::new(Orientation::Vertical, 8);
 	list_box.set_margin_start(8);
 	list_box.set_margin_end(8);
 	list_box.set_margin_top(8);
