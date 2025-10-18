@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -25,6 +26,6 @@ pub struct Message {
   pub subject: String,
   pub preview: String,
   pub body: String,
-  #[allow(dead_code)]
+  pub date: DateTime<Utc>,
   pub unread: bool,
 }

@@ -4,9 +4,9 @@ use async_imap::types::Flag;
 use async_imap::Session;
 use async_native_tls::{TlsConnector, TlsStream};
 use async_std::net::TcpStream;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use futures::StreamExt;
-use mailparse::{parse_mail, MailHeaderMap};
+use mailparse::{parse_mail, MailHeaderMap, dateparse};
 
 type ImapSession = Session<TlsStream<TcpStream>>;
 
@@ -41,6 +41,12 @@ pub async fn sync_account(account: &AccountConfig) -> Result<(), String> {
       if let Ok(msg) = msg_result {
         if let Some(body) = msg.body() {
           if let Ok(parsed) = parse_mail(body) {
+            let date = parsed
+              .headers
+              .get_first_value("Date")
+              .and_then(|d| dateparse(&d).ok())
+              .unwrap_or_else(|| Utc::now().timestamp());
+
             let message = Message {
               from: parsed
                 .headers
@@ -52,6 +58,7 @@ pub async fn sync_account(account: &AccountConfig) -> Result<(), String> {
                 .unwrap_or_default(),
               preview: extract_preview(&parsed),
               body: extract_body(&parsed),
+              date: DateTime::from_timestamp(date, 0).unwrap_or_else(|| Utc::now()),
               unread: !msg.flags().any(|f| matches!(f, Flag::Seen)),
             };
             new_messages.push(message);
@@ -65,6 +72,7 @@ pub async fn sync_account(account: &AccountConfig) -> Result<(), String> {
     }
 
     cache.messages.extend(new_messages);
+    cache.messages.sort_by(|a, b| b.date.cmp(&a.date));
     cache.messages.truncate(100);
     cache.last_uid = max_uid;
     cache.last_sync = Some(Utc::now());
