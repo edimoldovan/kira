@@ -7,9 +7,10 @@ pub fn build() -> (ScrolledWindow, Box) {
 	scrolled.set_hexpand(true);
 
 	let reader_box = Box::new(Orientation::Vertical, 16);
-	reader_box.set_margin_start(8);
-	reader_box.set_margin_end(8);
+	reader_box.set_margin_start(12);
+	reader_box.set_margin_end(12);
 	reader_box.set_margin_top(8);
+	reader_box.set_margin_bottom(8);
 
 	scrolled.set_child(Some(&reader_box));
 	(scrolled, reader_box.clone())

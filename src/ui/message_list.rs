@@ -9,9 +9,10 @@ pub fn build() -> (ScrolledWindow, Box) {
 	scrolled.set_width_request(400);
 
 	let list_box = Box::new(Orientation::Vertical, 8);
-	list_box.set_margin_start(8);
-	list_box.set_margin_end(8);
+	list_box.set_margin_start(16);
+	list_box.set_margin_end(12);
 	list_box.set_margin_top(8);
+	list_box.set_margin_bottom(8);
 
 	scrolled.set_child(Some(&list_box));
 	(scrolled, list_box.clone())
