@@ -15,7 +15,9 @@ pub fn view<'a>(
     current_account: usize,
     expanded_accounts: &'a [bool],
 ) -> Element<'a, Message> {
-    let toolbar = row![button(text("+")).on_press(Message::AddAccount)]
+    let toolbar = row![button(text("+"))
+        .style(theme::button_style)
+        .on_press(Message::AddAccount)]
         .padding(0)
         .spacing(0);
 
@@ -32,6 +34,8 @@ pub fn view<'a>(
                 background: Some(theme::SELECTED_BACKGROUND.into()),
                 ..Default::default()
             });
+        } else {
+            btn = btn.style(theme::button_style);
         }
 
         btn = btn.on_press(Message::InboxClicked(index));
@@ -43,12 +47,15 @@ pub fn view<'a>(
     for (index, account) in accounts.iter().enumerate() {
         let email_btn = button(text(&account.email))
             .width(Length::Fill)
+            .style(theme::button_style)
             .on_press(Message::ToggleAccountExpansion(index));
         sidebar_content = sidebar_content.push(email_btn);
 
         if *expanded_accounts.get(index).unwrap_or(&false) {
             for folder in &account.folders {
-                let folder_btn = button(text(folder)).width(Length::Fill);
+                let folder_btn = button(text(folder))
+                    .width(Length::Fill)
+                    .style(theme::button_style);
                 sidebar_content = sidebar_content.push(folder_btn);
             }
         }

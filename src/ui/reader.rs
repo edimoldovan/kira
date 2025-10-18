@@ -1,4 +1,5 @@
 use crate::email::account::Message as EmailMessage;
+use crate::theme;
 use iced::widget::{button, column, container, horizontal_space, row, scrollable, text};
 use iced::{Element, Length};
 
@@ -14,12 +15,12 @@ pub enum Message {
 
 pub fn view<'a>(message: Option<&'a EmailMessage>) -> Element<'a, Message> {
     let toolbar = row![
-        button(text("Reply")),
-        button(text("Reply all")),
-        button(text("Forward")),
+        button(text("Reply")).style(theme::button_style),
+        button(text("Reply all")).style(theme::button_style),
+        button(text("Forward")).style(theme::button_style),
         horizontal_space(),
-        button(text("Mark as spam")),
-        button(text("Delete")),
+        button(text("Mark as spam")).style(theme::button_style),
+        button(text("Delete")).style(theme::button_style),
     ]
     .spacing(8)
     .padding(0);

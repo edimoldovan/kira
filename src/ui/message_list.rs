@@ -13,7 +13,9 @@ pub fn view<'a>(
     messages: &'a [EmailMessage],
     current_message: usize,
 ) -> Element<'a, Message> {
-    let toolbar = row![button(text("+")).on_press(Message::AddMessage)]
+    let toolbar = row![button(text("+"))
+        .style(theme::button_style)
+        .on_press(Message::AddMessage)]
         .padding(0)
         .spacing(0);
 
@@ -28,7 +30,7 @@ pub fn view<'a>(
             text(&msg.preview).size(12),
         ]
         .spacing(4)
-        .padding(8);
+        .padding(0);
 
         let mut btn = button(msg_view).width(Length::Fill);
 
@@ -37,6 +39,8 @@ pub fn view<'a>(
                 background: Some(theme::SELECTED_BACKGROUND.into()),
                 ..Default::default()
             });
+        } else {
+            btn = btn.style(theme::button_style);
         }
 
         btn = btn.on_press(Message::MessageClicked(index));
