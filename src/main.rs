@@ -2,7 +2,7 @@ mod email;
 
 use email::account::Account;
 use iced::widget::{button, column, container, row, scrollable, text};
-use iced::{Element, Length, Task, Theme};
+use iced::{Border, Color, Element, Length, Task, Theme};
 
 fn main() -> iced::Result {
     iced::application("Kira", Kira::update, Kira::view)
@@ -220,6 +220,11 @@ impl Kira {
         container(scrollable(list_content))
             .width(400)
             .height(Length::Fill)
+            .style(|_theme| container::Style {
+                background: Some(Color::from_rgb(0.15, 0.15, 0.15).into()),
+                border: Border::default(),
+                ..Default::default()
+            })
             .into()
     }
 
