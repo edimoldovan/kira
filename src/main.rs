@@ -156,7 +156,10 @@ impl Kira {
                 .width(Length::Fill);
 
             if is_selected {
-                btn = btn.style(button::primary);
+                btn = btn.style(|_theme, _status| button::Style {
+                    background: Some(Color::from_rgb(0.3, 0.5, 0.8).into()),
+                    ..Default::default()
+                });
             }
 
             btn = btn.on_press(Message::InboxClicked(index));
@@ -208,7 +211,10 @@ impl Kira {
                 let mut btn = button(msg_view).width(Length::Fill);
 
                 if is_selected {
-                    btn = btn.style(button::primary);
+                    btn = btn.style(|_theme, _status| button::Style {
+                        background: Some(Color::from_rgb(0.3, 0.5, 0.8).into()),
+                        ..Default::default()
+                    });
                 }
 
                 btn = btn.on_press(Message::MessageClicked(index));
