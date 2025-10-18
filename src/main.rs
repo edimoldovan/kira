@@ -1,7 +1,7 @@
 mod email;
 
 use email::account::Account;
-use iced::widget::{button, column, container, row, scrollable, text};
+use iced::widget::{button, column, container, horizontal_space, row, scrollable, text};
 use iced::{Border, Color, Element, Length, Task, Theme};
 
 fn main() -> iced::Result {
@@ -239,8 +239,9 @@ impl Kira {
             button(text("Reply")),
             button(text("Reply all")),
             button(text("Forward")),
-            button(text("Delete")),
+            horizontal_space(),
             button(text("Mark as spam")),
+            button(text("Delete")),
         ]
         .spacing(8)
         .padding(0);
