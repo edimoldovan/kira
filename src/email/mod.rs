@@ -1,2 +1,2 @@
-pub mod imap;
 pub mod account;
+pub mod imap;
