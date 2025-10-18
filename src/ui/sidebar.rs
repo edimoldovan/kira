@@ -32,6 +32,7 @@ pub fn view<'a>(
         if is_selected {
             btn = btn.style(|_theme, _status| button::Style {
                 background: Some(theme::SELECTED_BACKGROUND.into()),
+                text_color: theme::TEXT_COLOR,
                 ..Default::default()
             });
         } else {

@@ -29,9 +29,9 @@ pub fn view<'a>(message: Option<&'a EmailMessage>) -> Element<'a, Message> {
 
     if let Some(msg) = message {
         reader_content = reader_content
-            .push(text(format!("From: {}", msg.from)))
-            .push(text(format!("Subject: {}", msg.subject)))
-            .push(text(&msg.body));
+            .push(text(format!("From: {}", msg.from)).color(theme::TEXT_COLOR))
+            .push(text(format!("Subject: {}", msg.subject)).color(theme::TEXT_COLOR))
+            .push(text(&msg.body).color(theme::TEXT_COLOR));
     }
 
     container(scrollable(reader_content))
