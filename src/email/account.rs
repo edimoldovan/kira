@@ -3,6 +3,7 @@ pub struct Account {
 	pub email: String,
 	pub unread: u32,
 	pub folders: Vec<String>,
+	pub messages: Vec<Message>,
 }
 
 pub struct Message {
