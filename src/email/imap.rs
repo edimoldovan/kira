@@ -30,7 +30,7 @@ pub async fn sync_account(account: &AccountConfig) -> Result<(), String> {
 
   {
     let mut messages_stream = session
-      .fetch(&fetch_range, "(UID FLAGS ENVELOPE BODY.PEEK[TEXT]<0.200>)")
+      .fetch(&fetch_range, "(UID FLAGS ENVELOPE)")
       .await
       .map_err(|e| format!("Failed to fetch messages: {}", e))?;
 
@@ -76,16 +76,11 @@ pub async fn sync_account(account: &AccountConfig) -> Result<(), String> {
           .and_then(|d| dateparse(&String::from_utf8_lossy(d)).ok())
           .unwrap_or_else(|| Utc::now().timestamp());
 
-        let preview = msg
-          .text()
-          .map(|t| String::from_utf8_lossy(t).chars().take(200).collect())
-          .unwrap_or_default();
-
         let message = Message {
           uid,
           from,
           subject,
-          preview,
+          preview: String::new(),
           body: None,
           date: DateTime::from_timestamp(date, 0).unwrap_or_else(|| Utc::now()),
           unread: !msg.flags().any(|f| matches!(f, Flag::Seen)),
@@ -186,16 +181,55 @@ pub async fn fetch_message_body(
 }
 
 fn extract_body(parsed: &mailparse::ParsedMail) -> String {
-  if let Ok(body) = parsed.get_body() {
-    return body;
-  }
+  extract_body_recursive(parsed)
+}
 
-  for subpart in &parsed.subparts {
-    if subpart.ctype.mimetype.starts_with("text/") {
-      if let Ok(body) = subpart.get_body() {
+fn extract_body_recursive(parsed: &mailparse::ParsedMail) -> String {
+  // Try to get body from this part first
+  if parsed.ctype.mimetype.starts_with("text/plain") {
+    if let Ok(body) = parsed.get_body() {
+      if !body.trim().is_empty() {
         return body;
       }
     }
+  }
+
+  // If this part has subparts, search them recursively
+  if !parsed.subparts.is_empty() {
+    // First try to find text/plain
+    for subpart in &parsed.subparts {
+      if subpart.ctype.mimetype.starts_with("text/plain") {
+        if let Ok(body) = subpart.get_body() {
+          if !body.trim().is_empty() {
+            return body;
+          }
+        }
+      }
+    }
+
+    // If no text/plain found, try text/html
+    for subpart in &parsed.subparts {
+      if subpart.ctype.mimetype.starts_with("text/html") {
+        if let Ok(body) = subpart.get_body() {
+          if !body.trim().is_empty() {
+            return body;
+          }
+        }
+      }
+    }
+
+    // Recursively search subparts
+    for subpart in &parsed.subparts {
+      let body = extract_body_recursive(subpart);
+      if !body.trim().is_empty() {
+        return body;
+      }
+    }
+  }
+
+  // Fallback: try to get any body
+  if let Ok(body) = parsed.get_body() {
+    return body;
   }
 
   String::new()
