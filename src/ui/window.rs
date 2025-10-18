@@ -69,6 +69,7 @@ pub fn build() -> Box {
 		},
 	]);
 
+	let outer_paned = Paned::new(Orientation::Horizontal);
 	let paned = Paned::new(Orientation::Horizontal);
 
 	let (message_list, list_box) = super::message_list::build();
@@ -119,13 +120,16 @@ pub fn build() -> Box {
 	};
 
 	let sidebar = super::sidebar::build(&accounts, inbox_callback);
-	main_box.append(&sidebar);
 
 	paned.set_start_child(Some(&message_list));
 	paned.set_end_child(Some(&reader));
 	paned.set_position(400);
 
-	main_box.append(&paned);
+	outer_paned.set_start_child(Some(&sidebar));
+	outer_paned.set_end_child(Some(&paned));
+	outer_paned.set_position(250);
+
+	main_box.append(&outer_paned);
 
 	main_box
 }

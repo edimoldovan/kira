@@ -9,7 +9,6 @@ where
 	F: Fn(usize) + 'static + Clone,
 {
 	let sidebar = Box::new(Orientation::Vertical, 8);
-	sidebar.set_width_request(250);
 	sidebar.set_margin_start(8);
 	sidebar.set_margin_end(8);
 	sidebar.set_margin_top(8);
