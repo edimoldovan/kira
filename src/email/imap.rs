@@ -180,6 +180,73 @@ pub async fn fetch_message_body(
   Ok(body)
 }
 
+fn html_to_text(html: &str) -> String {
+  let with_breaks = html
+    .replace("<br>", "\n")
+    .replace("<br/>", "\n")
+    .replace("<br />", "\n")
+    .replace("</p>", "\n\n")
+    .replace("</div>", "\n")
+    .replace("</h1>", "\n\n")
+    .replace("</h2>", "\n\n")
+    .replace("</h3>", "\n\n")
+    .replace("</li>", "\n")
+    .replace("</tr>", "\n");
+
+  // Extract link URLs from <a> tags
+  let mut result = String::new();
+  let mut in_tag = false;
+  let mut current_tag = String::new();
+  let mut link_text = String::new();
+  let mut in_link = false;
+
+  let mut chars = with_breaks.chars().peekable();
+  while let Some(c) = chars.next() {
+    match c {
+      '<' => {
+        in_tag = true;
+        current_tag.clear();
+      }
+      '>' => {
+        in_tag = false;
+        // Check if it's a link tag
+        if current_tag.starts_with("a ") || current_tag.starts_with("a\t") {
+          in_link = true;
+          link_text.clear();
+          // Extract href
+          if let Some(href_start) = current_tag.find("href=\"") {
+            let url_start = href_start + 6;
+            if let Some(url_end) = current_tag[url_start..].find('"') {
+              let url = &current_tag[url_start..url_start + url_end];
+              result.push_str("\n[Link: ");
+              result.push_str(url);
+              result.push_str("]\n");
+            }
+          }
+        } else if current_tag == "/a" {
+          in_link = false;
+        }
+        current_tag.clear();
+      }
+      _ if in_tag => {
+        current_tag.push(c);
+      }
+      _ if !in_tag && !in_link => {
+        result.push(c);
+      }
+      _ => {}
+    }
+  }
+
+  // Clean up whitespace
+  result
+    .lines()
+    .map(|line| line.trim())
+    .filter(|line| !line.is_empty())
+    .collect::<Vec<_>>()
+    .join("\n")
+}
+
 fn extract_body(parsed: &mailparse::ParsedMail) -> String {
   extract_body_recursive(parsed)
 }
@@ -207,12 +274,15 @@ fn extract_body_recursive(parsed: &mailparse::ParsedMail) -> String {
       }
     }
 
-    // If no text/plain found, try text/html
+    // If no text/plain found, try text/html and convert to plain text
     for subpart in &parsed.subparts {
       if subpart.ctype.mimetype.starts_with("text/html") {
         if let Ok(body) = subpart.get_body() {
           if !body.trim().is_empty() {
-            return body;
+            // Clean HTML and extract text
+            let cleaned = ammonia::clean(&body);
+            let text = html_to_text(&cleaned);
+            return text;
           }
         }
       }

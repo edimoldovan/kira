@@ -106,7 +106,7 @@ impl Kira {
         }
         ui::message_list::Message::AddMessage => {}
       },
-      Message::Reader(_reader_msg) => {}
+      Message::Reader(_reader_msg) => {},
       Message::SyncComplete(result) => {
         self.is_syncing = false;
         match result {
@@ -123,7 +123,8 @@ impl Kira {
       Message::MessageBodyLoaded(account_idx, msg_idx, body) => {
         if let Some(account) = self.accounts.get_mut(account_idx) {
           if let Some(msg) = account.messages.get_mut(msg_idx) {
-            msg.body = Some(body);
+            msg.body = Some(body.clone());
+
           }
         }
       }
