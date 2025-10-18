@@ -15,6 +15,12 @@ where
 	sidebar.set_margin_top(8);
 	sidebar.set_margin_bottom(8);
 
+	// Toolbar with plus button
+	let toolbar = Box::new(Orientation::Horizontal, 0);
+	let plus_btn = Button::with_label("+");
+	toolbar.append(&plus_btn);
+	sidebar.append(&toolbar);
+
 	// Section 1: Inboxes
 	let inboxes_box = Box::new(Orientation::Vertical, 8);
 	let inbox_buttons: Rc<RefCell<Vec<Button>>> = Rc::new(RefCell::new(Vec::new()));
@@ -57,9 +63,9 @@ where
 	for account in accounts {
 		let expander = Expander::new(Some(&account.email));
 
-		let folders_box = Box::new(Orientation::Vertical, 2);
+		let folders_box = Box::new(Orientation::Vertical, 8);
 		// folders_box.set_margin_start(16);
-		folders_box.set_margin_top(4);
+		folders_box.set_margin_top(8);
 
 		for folder in &account.folders {
 			let folder_btn = Button::with_label(folder);

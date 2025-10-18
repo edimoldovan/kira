@@ -26,6 +26,12 @@ where
 		list_box.remove(&child);
 	}
 
+	// Toolbar with plus button
+	let toolbar = Box::new(Orientation::Horizontal, 0);
+	let plus_btn = Button::with_label("+");
+	toolbar.append(&plus_btn);
+	list_box.append(&toolbar);
+
 	let message_buttons: Rc<RefCell<Vec<Button>>> = Rc::new(RefCell::new(Vec::new()));
 
 	// Add new messages
