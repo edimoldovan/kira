@@ -1,5 +1,5 @@
 use gtk4::prelude::*;
-use gtk4::{Box, Button, Expander, Orientation};
+use gtk4::{Box, Button, Expander, Label, Orientation};
 use crate::email::account::Account;
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -20,7 +20,10 @@ where
 	let inbox_buttons: Rc<RefCell<Vec<Button>>> = Rc::new(RefCell::new(Vec::new()));
 
 	for (index, account) in accounts.iter().enumerate() {
-		let inbox_btn = Button::with_label(&format!("{} Inbox ({})", account.name, account.unread));
+		let inbox_btn = Button::new();
+		let label = Label::new(Some(&format!("{} ({})", account.name, account.unread)));
+		label.set_xalign(0.0);
+		inbox_btn.set_child(Some(&label));
 
 		// Select first inbox by default
 		if index == 0 {
@@ -52,7 +55,7 @@ where
 	// Section 2: Account details with folders
 	let accounts_box = Box::new(Orientation::Vertical, 8);
 	for account in accounts {
-		let expander = Expander::new(Some(&format!("{} ({})", account.name, account.email)));
+		let expander = Expander::new(Some(&account.email));
 
 		let folders_box = Box::new(Orientation::Vertical, 2);
 		// folders_box.set_margin_start(16);
