@@ -40,6 +40,33 @@ impl Kira {
 
     let sync_task = Task::perform(sync_all_accounts(), Message::SyncComplete);
 
+    // Fetch body for first message if not already loaded
+    let fetch_first_body = if let Some(first_msg) = accounts
+      .get(0)
+      .and_then(|acc| acc.messages.get(0))
+    {
+      if first_msg.body.is_none() || first_msg.body.as_ref().map(|b| b.is_empty()).unwrap_or(false) {
+        let configs = config::get_account_configs();
+        if let Some(account_config) = configs.get(0) {
+          let account_config = account_config.clone();
+          let uid = first_msg.uid;
+          Task::perform(
+            async move { imap::fetch_message_body(&account_config, uid).await },
+            move |result| match result {
+              Ok(body) => Message::MessageBodyLoaded(0, 0, body),
+              Err(e) => Message::MessageBodyLoaded(0, 0, format!("Error: {}", e)),
+            },
+          )
+        } else {
+          Task::none()
+        }
+      } else {
+        Task::none()
+      }
+    } else {
+      Task::none()
+    };
+
     (
       Self {
         accounts,
@@ -49,7 +76,7 @@ impl Kira {
         sync_error: None,
         is_syncing: true,
       },
-      sync_task,
+      Task::batch([sync_task, fetch_first_body]),
     )
   }
 
@@ -114,6 +141,40 @@ impl Kira {
             self.accounts = config::load_accounts();
             self.expanded_accounts = vec![false; self.accounts.len()];
             self.sync_error = None;
+
+            // Fetch body for current message if not loaded
+            let should_fetch = self
+              .accounts
+              .get(self.current_account)
+              .and_then(|acc| acc.messages.get(self.current_message))
+              .map(|msg| {
+                msg.body.is_none() || msg.body.as_ref().map(|b| b.is_empty()).unwrap_or(false)
+              })
+              .unwrap_or(false);
+
+            if should_fetch {
+              let configs = config::get_account_configs();
+              if let Some(account_config) = configs.get(self.current_account) {
+                if let Some(msg) = self
+                  .accounts
+                  .get(self.current_account)
+                  .and_then(|acc| acc.messages.get(self.current_message))
+                {
+                  let account_config = account_config.clone();
+                  let uid = msg.uid;
+                  let account_idx = self.current_account;
+                  let msg_idx = self.current_message;
+
+                  return Task::perform(
+                    async move { imap::fetch_message_body(&account_config, uid).await },
+                    move |result| match result {
+                      Ok(body) => Message::MessageBodyLoaded(account_idx, msg_idx, body),
+                      Err(e) => Message::MessageBodyLoaded(account_idx, msg_idx, format!("Error: {}", e)),
+                    },
+                  );
+                }
+              }
+            }
           }
           Err(e) => {
             self.sync_error = Some(e);

@@ -33,9 +33,6 @@ pub fn view<'a>(message: Option<&'a EmailMessage>) -> Element<'a, Message> {
       .push(text(format!("Subject: {}", msg.subject)).color(theme::TEXT_COLOR));
 
     if let Some(body) = &msg.body {
-      eprintln!("=== BODY START (len: {}) ===", body.len());
-      eprintln!("{}", body);
-      eprintln!("=== BODY END ===");
       reader_content = reader_content.push(text(body).color(theme::TEXT_COLOR));
     } else {
       reader_content =
