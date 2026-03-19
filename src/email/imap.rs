@@ -1,5 +1,7 @@
-use crate::email::account::{AccountConfig, Message};
+use crate::email::account::AccountConfig;
+use crate::email::account::Message;
 use crate::email::cache::{load_folder_cache, save_folder_cache};
+use crate::email::oauth;
 use async_imap::types::Flag;
 use async_imap::Session;
 use async_native_tls::{TlsConnector, TlsStream};
@@ -11,6 +13,11 @@ use mailparse::{dateparse, parse_mail};
 type ImapSession = Session<TlsStream<TcpStream>>;
 
 pub async fn sync_account(account: &AccountConfig) -> Result<(), String> {
+  let account = account.clone();
+  async_std::task::spawn(async move { sync_account_inner(&account).await }).await
+}
+
+async fn sync_account_inner(account: &AccountConfig) -> Result<(), String> {
   let mut session = connect_imap(account).await?;
 
   session
@@ -110,9 +117,13 @@ pub async fn sync_account(account: &AccountConfig) -> Result<(), String> {
 
 async fn connect_imap(account: &AccountConfig) -> Result<ImapSession, String> {
   let addr = format!("{}:{}", account.imap_server, account.imap_port);
-  let tcp = TcpStream::connect(&addr)
-    .await
-    .map_err(|e| format!("Failed to connect to {}: {}", addr, e))?;
+  let tcp = async_std::future::timeout(
+    std::time::Duration::from_secs(10),
+    TcpStream::connect(&addr),
+  )
+  .await
+  .map_err(|_| format!("Connection to {} timed out", addr))?
+  .map_err(|e| format!("Failed to connect to {}: {}", addr, e))?;
 
   let tls = TlsConnector::new();
   let tls_stream = tls
@@ -120,14 +131,22 @@ async fn connect_imap(account: &AccountConfig) -> Result<ImapSession, String> {
     .await
     .map_err(|e| format!("TLS connection failed: {}", e))?;
 
-  let client = async_imap::Client::new(tls_stream);
+  let mut client = async_imap::Client::new(tls_stream);
+  let _greeting = client.read_response().await;
 
-  let session = client
-    .login(&account.username, &account.password)
-    .await
-    .map_err(|e| format!("Login failed: {}", e.0))?;
-
-  Ok(session)
+  if account.is_oauth() {
+    let access_token = oauth::refresh_access_token(account).await?;
+    let auth = oauth::XOAuth2::new(&account.email, &access_token);
+    client
+      .authenticate("XOAUTH2", auth)
+      .await
+      .map_err(|e| format!("XOAUTH2 login failed: {}", e.0))
+  } else {
+    client
+      .login(&account.username, &account.password)
+      .await
+      .map_err(|e| format!("Login failed: {}", e.0))
+  }
 }
 
 async fn get_message_count(session: &mut ImapSession) -> Result<u32, String> {
@@ -143,6 +162,11 @@ pub async fn fetch_message_body(
   account: &AccountConfig,
   uid: u32,
 ) -> Result<String, String> {
+  let account = account.clone();
+  async_std::task::spawn(async move { fetch_message_body_inner(&account, uid).await }).await
+}
+
+async fn fetch_message_body_inner(account: &AccountConfig, uid: u32) -> Result<String, String> {
   let mut session = connect_imap(account).await?;
 
   session
@@ -197,10 +221,9 @@ fn html_to_text(html: &str) -> String {
   let mut result = String::new();
   let mut in_tag = false;
   let mut current_tag = String::new();
-  let mut link_text = String::new();
   let mut in_link = false;
 
-  let mut chars = with_breaks.chars().peekable();
+  let mut chars = with_breaks.chars();
   while let Some(c) = chars.next() {
     match c {
       '<' => {
@@ -212,7 +235,6 @@ fn html_to_text(html: &str) -> String {
         // Check if it's a link tag
         if current_tag.starts_with("a ") || current_tag.starts_with("a\t") {
           in_link = true;
-          link_text.clear();
           // Extract href
           if let Some(href_start) = current_tag.find("href=\"") {
             let url_start = href_start + 6;

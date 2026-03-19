@@ -5,6 +5,7 @@ mod ui;
 
 use email::account::Account;
 use email::imap;
+use email::oauth;
 use iced::widget::{container, row};
 use iced::{Element, Length, Task, Theme};
 
@@ -136,10 +137,10 @@ impl Kira {
       Message::Reader(_reader_msg) => {},
       Message::SyncComplete(result) => {
         self.is_syncing = false;
+        self.accounts = config::load_accounts();
+        self.expanded_accounts = vec![false; self.accounts.len()];
         match result {
           Ok(_) => {
-            self.accounts = config::load_accounts();
-            self.expanded_accounts = vec![false; self.accounts.len()];
             self.sync_error = None;
 
             // Fetch body for current message if not loaded
@@ -236,10 +237,26 @@ impl Kira {
 }
 
 async fn sync_all_accounts() -> Result<(), String> {
-  let configs = config::get_account_configs();
+  let mut configs = config::get_account_configs();
   let mut errors = Vec::new();
 
-  for account in &configs {
+  for account in &mut configs {
+    if account.is_oauth() && account.refresh_token.is_empty() {
+      match oauth::authorize(account).await {
+        Ok((_access_token, refresh_token)) => {
+          account.refresh_token = refresh_token.clone();
+          if let Err(e) = config::save_refresh_token(&account.email, &refresh_token) {
+            errors.push(format!("{}: Failed to save token: {}", account.email, e));
+            continue;
+          }
+        }
+        Err(e) => {
+          errors.push(format!("{}: OAuth failed: {}", account.email, e));
+          continue;
+        }
+      }
+    }
+
     if let Err(e) = imap::sync_account(account).await {
       let error_msg = format!("{}: {}", account.email, e);
       eprintln!("Failed to sync {}", error_msg);
